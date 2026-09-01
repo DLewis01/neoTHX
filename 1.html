@@ -1,0 +1,2210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moorer Deep Note Reconstruction</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        background: #090b0e;
+        color: #d8dde3;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    header {
+        padding: 18px 24px 12px;
+        border-bottom: 1px solid #252a30;
+    }
+
+    h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+    }
+
+    .subtitle {
+        margin-top: 5px;
+        color: #78818b;
+        font-size: 13px;
+    }
+
+    .layout {
+        display: grid;
+        grid-template-columns: 310px 1fr;
+        min-height: calc(100vh - 76px);
+    }
+
+    #controls {
+        padding: 18px;
+        border-right: 1px solid #252a30;
+        overflow-y: auto;
+    }
+
+    .section {
+        margin-bottom: 22px;
+    }
+
+    .section-title {
+        color: #8d98a3;
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.15em;
+        margin-bottom: 10px;
+    }
+
+    label {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 12px;
+        color: #b5bdc6;
+    }
+
+    .value {
+        float: right;
+        color: #f0f2f4;
+        font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+        width: 100%;
+        margin-top: 7px;
+        accent-color: #b8c0c8;
+    }
+
+    input[type="number"],
+    select {
+        width: 100%;
+        background: #11151a;
+        border: 1px solid #30363d;
+        color: #e4e8eb;
+        padding: 7px;
+        border-radius: 4px;
+        margin-top: 5px;
+    }
+
+    button {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 7px;
+        border: 1px solid #3b4249;
+        background: #171b20;
+        color: #e3e7eb;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: #20262c;
+    }
+
+    button.primary {
+        background: #d9dde1;
+        color: #0b0d0f;
+        border-color: #d9dde1;
+    }
+
+    button.primary:hover {
+        background: white;
+    }
+
+    button:disabled {
+        opacity: 0.35;
+        cursor: default;
+    }
+
+    .status {
+        padding: 10px;
+        background: #101419;
+        border: 1px solid #272d34;
+        border-radius: 4px;
+        font-size: 12px;
+        line-height: 1.6;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .status-value {
+        color: #f0f2f4;
+        float: right;
+    }
+
+    #visual {
+        position: relative;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #spectrumCanvas {
+        width: 100%;
+        height: 100%;
+        min-height: 500px;
+        display: block;
+    }
+
+    .legend {
+        position: absolute;
+        left: 18px;
+        top: 15px;
+        font-size: 11px;
+        color: #67717b;
+        pointer-events: none;
+    }
+
+    .stage {
+        position: absolute;
+        right: 18px;
+        top: 15px;
+        font-size: 11px;
+        color: #9ba4ad;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+    }
+
+    .note {
+        color: #65707a;
+        font-size: 11px;
+        line-height: 1.5;
+    }
+
+    @media (max-width: 800px) {
+        .layout {
+            grid-template-columns: 1fr;
+        }
+
+        #controls {
+            border-right: 0;
+            border-bottom: 1px solid #252a30;
+        }
+
+        #visual {
+            min-height: 500px;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>MOORER DEEP NOTE</h1>
+    <div class="subtitle">
+        30-voice parametric reconstruction of the 1982 THX Deep Note synthesis concept
+    </div>
+</header>
+
+<div class="layout">
+
+<div id="controls">
+
+    <div class="section">
+        <div class="section-title">Performance</div>
+
+        <button id="playButton" class="primary">
+            ▶ PLAY DEEP NOTE
+        </button>
+
+        <button id="randomButton">
+            ↻ NEW RANDOM PERFORMANCE
+        </button>
+
+        <button id="stopButton">
+            ■ STOP
+        </button>
+
+        <button id="renderButton">
+            ↓ RENDER WAV
+        </button>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Voice Architecture</div>
+
+        <label>
+            Voices
+            <span class="value" id="voicesValue">30</span>
+            <input id="voices" type="range"
+                   min="1" max="60" value="30">
+        </label>
+
+        <label>
+            Starting frequency
+            <span class="value">
+                <span id="startLowValue">196</span> –
+                <span id="startHighValue">392</span> Hz
+            </span>
+            <input id="startLow" type="range"
+                   min="40" max="350" value="196">
+
+            <input id="startHigh" type="range"
+                   min="100" max="500" value="392">
+        </label>
+
+        <label>
+            Random target interval
+            <span class="value" id="randomIntervalValue">1.00 s</span>
+            <input id="randomInterval" type="range"
+                   min="0.1" max="3" step="0.05" value="1">
+        </label>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Timing</div>
+
+        <label>
+            Fade in
+            <span class="value" id="fadeInValue">2.0 s</span>
+            <input id="fadeIn" type="range"
+                   min="0" max="8" step="0.1" value="2">
+        </label>
+
+        <label>
+            Chaos
+            <span class="value" id="chaosValue">4.0 s</span>
+            <input id="chaos" type="range"
+                   min="0" max="12" step="0.1" value="4">
+        </label>
+
+        <label>
+            Convergence
+            <span class="value" id="convergenceValue">12.0 s</span>
+            <input id="convergence" type="range"
+                   min="1" max="25" step="0.1" value="12">
+        </label>
+
+        <label>
+            Sustain
+            <span class="value" id="sustainValue">3.0 s</span>
+            <input id="sustain" type="range"
+                   min="0" max="10" step="0.1" value="3">
+        </label>
+
+        <label>
+            Fade out
+            <span class="value" id="fadeOutValue">3.0 s</span>
+            <input id="fadeOut" type="range"
+                   min="0.2" max="10" step="0.1" value="3">
+        </label>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Smoothing</div>
+
+        <label>
+            Chaos smoothing
+            <span class="value" id="chaosSmoothValue">0.35 s</span>
+            <input id="chaosSmooth" type="range"
+                   min="0.02" max="1" step="0.01" value="0.35">
+        </label>
+
+        <label>
+            Convergence smoothing
+            <span class="value" id="convSmoothValue">1.5 s</span>
+            <input id="convSmooth" type="range"
+                   min="0.05" max="5" step="0.05" value="1.5">
+        </label>
+
+        <label>
+            Final detuning
+            <span class="value" id="detuneValue">18 cents</span>
+            <input id="detune" type="range"
+                   min="0" max="100" step="1" value="18">
+        </label>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Tone</div>
+
+        <label>
+            Harmonic brightness
+            <span class="value" id="brightnessValue">0.65</span>
+            <input id="brightness" type="range"
+                   min="0" max="1" step="0.01" value="0.65">
+        </label>
+
+        <label>
+            Voice level
+            <span class="value" id="levelValue">0.55</span>
+            <input id="level" type="range"
+                   min="0.05" max="1" step="0.01" value="0.55">
+        </label>
+
+        <label>
+            Stereo width
+            <span class="value" id="stereoValue">0.85</span>
+            <input id="stereo" type="range"
+                   min="0" max="1" step="0.01" value="0.85">
+        </label>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Random Seed</div>
+
+        <label>
+            Seed
+            <input id="seed" type="number" value="1982">
+        </label>
+
+        <div class="note">
+            The original process was stochastic. Changing the seed produces
+            a different trajectory while keeping the same overall structure.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Status</div>
+
+        <div class="status">
+            Stage:
+            <span class="status-value" id="stageStatus">IDLE</span>
+            <br>
+            Time:
+            <span class="status-value" id="timeStatus">0.00 s</span>
+            <br>
+            Voices:
+            <span class="status-value" id="voiceStatus">30</span>
+        </div>
+    </div>
+
+</div>
+
+<div id="visual">
+
+    <div class="legend">
+        OSCILLATOR FREQUENCY TRAJECTORIES
+    </div>
+
+    <div class="stage" id="stageDisplay">
+        IDLE
+    </div>
+
+    <canvas id="spectrumCanvas"></canvas>
+
+</div>
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   MOORER DEEP NOTE
+   =========================================================
+
+   This is a browser reconstruction of the documented
+   architecture of James A. Moorer's original Deep Note.
+
+   Original concept:
+     - 30 voices
+     - random initial frequency cluster
+     - independent random motion
+     - assigned final frequencies
+     - smooth convergence
+     - slight final detuning
+     - additive synthesis
+
+   This is not the proprietary original ASP source code.
+   ========================================================= */
+
+
+/* ---------------------------------------------------------
+   PARAMETERS
+   --------------------------------------------------------- */
+
+const DEFAULT_TARGETS = [
+    37.5,
+    75,
+    150,
+    300,
+    600,
+    900,
+    1200,
+    1500,
+    1800
+];
+
+let audioContext = null;
+let masterGain = null;
+let voices = [];
+let playing = false;
+let performanceStart = 0;
+let animationFrame = null;
+
+let currentSeed = 1982;
+let rng;
+
+
+/* ---------------------------------------------------------
+   SEEDED RANDOM NUMBER GENERATOR
+   --------------------------------------------------------- */
+
+function makeRNG(seed) {
+
+    let value = seed >>> 0;
+
+    return function () {
+
+        value += 0x6D2B79F5;
+
+        let t = value;
+
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+
+        t ^= t + Math.imul(
+            t ^ (t >>> 7),
+            t | 61
+        );
+
+        return (
+            ((t ^ (t >>> 14)) >>> 0)
+            / 4294967296
+        );
+    };
+}
+
+
+function randomBetween(a, b) {
+    return a + rng() * (b - a);
+}
+
+
+/* ---------------------------------------------------------
+   UI
+   --------------------------------------------------------- */
+
+const $ = id => document.getElementById(id);
+
+function bindRange(id, formatter) {
+
+    const element = $(id);
+    const output = $(id + "Value");
+
+    function update() {
+        output.textContent = formatter(element.value);
+    }
+
+    element.addEventListener("input", update);
+    update();
+}
+
+
+bindRange("voices", v => v);
+
+bindRange("startLow", v =>
+    `${v}`
+);
+
+bindRange("startHigh", v =>
+    `${v}`
+);
+
+bindRange("randomInterval", v =>
+    `${Number(v).toFixed(2)} s`
+);
+
+bindRange("fadeIn", v =>
+    `${Number(v).toFixed(1)} s`
+);
+
+bindRange("chaos", v =>
+    `${Number(v).toFixed(1)} s`
+);
+
+bindRange("convergence", v =>
+    `${Number(v).toFixed(1)} s`
+);
+
+bindRange("sustain", v =>
+    `${Number(v).toFixed(1)} s`
+);
+
+bindRange("fadeOut", v =>
+    `${Number(v).toFixed(1)} s`
+);
+
+bindRange("chaosSmooth", v =>
+    `${Number(v).toFixed(2)} s`
+);
+
+bindRange("convSmooth", v =>
+    `${Number(v).toFixed(2)} s`
+);
+
+bindRange("detune", v =>
+    `${v} cents`
+);
+
+bindRange("brightness", v =>
+    Number(v).toFixed(2)
+);
+
+bindRange("level", v =>
+    Number(v).toFixed(2)
+);
+
+bindRange("stereo", v =>
+    Number(v).toFixed(2)
+);
+
+
+/* ---------------------------------------------------------
+   CELLO-LIKE ADDITIVE WAVEFORM
+   --------------------------------------------------------- */
+
+function createCelloWaveform(context) {
+
+    const brightness =
+        Number($("brightness").value);
+
+    const real = new Float32Array(13);
+    const imag = new Float32Array(13);
+
+    /*
+       A cello-like harmonic spectrum.
+
+       The original used a digitised cello waveform.
+       Here we approximate its spectral character using
+       additive harmonics.
+    */
+
+    for (let h = 1; h <= 12; h++) {
+
+        let amplitude =
+            Math.pow(0.55, h - 1);
+
+        /*
+           Emphasise the lower harmonics and introduce
+           a little harmonic irregularity.
+        */
+
+        amplitude *=
+            0.65 +
+            brightness * 0.35;
+
+        if (h === 2)
+            amplitude *= 1.15;
+
+        if (h === 3)
+            amplitude *= 0.95;
+
+        if (h === 4)
+            amplitude *= 0.85;
+
+        if (h > 6)
+            amplitude *= brightness;
+
+        imag[h] = amplitude;
+    }
+
+    return context.createPeriodicWave(
+        real,
+        imag,
+        {
+            disableNormalization: false
+        }
+    );
+}
+
+
+/* ---------------------------------------------------------
+   AUDIO INITIALISATION
+   --------------------------------------------------------- */
+
+async function initAudio() {
+
+    if (audioContext)
+        return;
+
+    audioContext =
+        new (window.AudioContext ||
+             window.webkitAudioContext)();
+
+    masterGain =
+        audioContext.createGain();
+
+    masterGain.gain.value = 0.0001;
+
+    masterGain.connect(
+        audioContext.destination
+    );
+
+    await audioContext.resume();
+}
+
+
+/* ---------------------------------------------------------
+   TARGET ASSIGNMENT
+   --------------------------------------------------------- */
+
+function createTargetAssignments(numberOfVoices) {
+
+    /*
+       Distribute voices across the nine documented
+       target frequencies.
+
+       Lower frequencies receive slightly more voices
+       because that produces the characteristic deep
+       foundation.
+    */
+
+    const weights = [
+        4, 4, 4, 4,
+        4, 3, 3, 2, 2
+    ];
+
+    let assignments = [];
+
+    for (let i = 0; i < numberOfVoices; i++) {
+
+        assignments.push(
+            DEFAULT_TARGETS[
+                i % DEFAULT_TARGETS.length
+            ]
+        );
+    }
+
+    /*
+       Shuffle deterministically.
+    */
+
+    for (let i = assignments.length - 1; i > 0; i--) {
+
+        const j =
+            Math.floor(rng() * (i + 1));
+
+        [
+            assignments[i],
+            assignments[j]
+        ] =
+        [
+            assignments[j],
+            assignments[i]
+        ];
+    }
+
+    return assignments;
+}
+
+
+/* ---------------------------------------------------------
+   CREATE VOICE
+   --------------------------------------------------------- */
+
+function createVoice(index, waveform) {
+
+    const osc =
+        audioContext.createOscillator();
+
+    const gain =
+        audioContext.createGain();
+
+    const panner =
+        audioContext.createStereoPanner();
+
+    osc.setPeriodicWave(waveform);
+
+    const startLow =
+        Number($("startLow").value);
+
+    const startHigh =
+        Number($("startHigh").value);
+
+    const initialFrequency =
+        randomBetween(
+            startLow,
+            startHigh
+        );
+
+    osc.frequency.value =
+        initialFrequency;
+
+    gain.gain.value = 0.0001;
+
+    /*
+       Spread voices across the stereo field.
+
+       The original used four channels; this is a
+       stereo approximation for headphones/speakers.
+    */
+
+    const stereoWidth =
+        Number($("stereo").value);
+
+    panner.pan.value =
+        (rng() * 2 - 1) *
+        stereoWidth;
+
+    osc.connect(gain);
+    gain.connect(panner);
+    panner.connect(masterGain);
+
+    osc.start();
+
+    return {
+        osc,
+        gain,
+        panner,
+
+        currentFrequency:
+            initialFrequency,
+
+        targetFrequency:
+            initialFrequency,
+
+        finalFrequency:
+            initialFrequency,
+
+        history: [],
+
+        lastRandomTargetTime: 0
+    };
+}
+
+
+/* ---------------------------------------------------------
+   START PERFORMANCE
+   --------------------------------------------------------- */
+
+async function playDeepNote() {
+
+    await initAudio();
+
+    stopPerformance();
+
+    currentSeed =
+        Number($("seed").value);
+
+    rng = makeRNG(currentSeed);
+
+    const numberOfVoices =
+        Number($("voices").value);
+
+    const waveform =
+        createCelloWaveform(
+            audioContext
+        );
+
+    const assignments =
+        createTargetAssignments(
+            numberOfVoices
+        );
+
+    voices = [];
+
+    for (let i = 0; i < numberOfVoices; i++) {
+
+        const voice =
+            createVoice(
+                i,
+                waveform
+            );
+
+        voice.finalFrequency =
+            assignments[i];
+
+        voices.push(voice);
+    }
+
+    playing = true;
+
+    performanceStart =
+        audioContext.currentTime;
+
+    masterGain.gain.cancelScheduledValues(
+        audioContext.currentTime
+    );
+
+    masterGain.gain.setValueAtTime(
+        0.0001,
+        audioContext.currentTime
+    );
+
+    masterGain.gain.linearRampToValueAtTime(
+        Number($("level").value),
+        audioContext.currentTime +
+        Number($("fadeIn").value)
+    );
+
+    requestAnimationFrame(
+        animationLoop
+    );
+}
+
+
+/* ---------------------------------------------------------
+   PERFORMANCE TIMING
+   --------------------------------------------------------- */
+
+function getPerformanceTimes() {
+
+    const fadeIn =
+        Number($("fadeIn").value);
+
+    const chaos =
+        Number($("chaos").value);
+
+    const convergence =
+        Number($("convergence").value);
+
+    const sustain =
+        Number($("sustain").value);
+
+    const fadeOut =
+        Number($("fadeOut").value);
+
+    return {
+        fadeIn,
+
+        chaosStart:
+            fadeIn,
+
+        convergenceStart:
+            fadeIn + chaos,
+
+        sustainStart:
+            fadeIn + chaos + convergence,
+
+        fadeOutStart:
+            fadeIn + chaos +
+            convergence + sustain,
+
+        end:
+            fadeIn + chaos +
+            convergence +
+            sustain +
+            fadeOut
+    };
+}
+
+
+/* ---------------------------------------------------------
+   UPDATE PERFORMANCE
+   --------------------------------------------------------- */
+
+function updatePerformance() {
+
+    if (!playing)
+        return;
+
+    const now =
+        audioContext.currentTime;
+
+    const elapsed =
+        now - performanceStart;
+
+    const times =
+        getPerformanceTimes();
+
+    let stage;
+
+    if (elapsed < times.chaosStart) {
+
+        stage = "FADE IN";
+
+    } else if (elapsed <
+               times.convergenceStart) {
+
+        stage = "CHAOS";
+
+    } else if (elapsed <
+               times.sustainStart) {
+
+        stage = "CONVERGENCE";
+
+    } else if (elapsed <
+               times.fadeOutStart) {
+
+        stage = "SUSTAIN";
+
+    } else if (elapsed <
+               times.end) {
+
+        stage = "FADE OUT";
+
+    } else {
+
+        stopPerformance();
+        return;
+    }
+
+    $("stageStatus").textContent =
+        stage;
+
+    $("stageDisplay").textContent =
+        stage;
+
+    $("timeStatus").textContent =
+        elapsed.toFixed(2) + " s";
+
+    $("voiceStatus").textContent =
+        voices.length;
+
+
+    /* -----------------------------------------------------
+       CHAOS
+       ----------------------------------------------------- */
+
+    if (stage === "CHAOS") {
+
+        const interval =
+            Number(
+                $("randomInterval").value
+            );
+
+        const smoothing =
+            Number(
+                $("chaosSmooth").value
+            );
+
+        voices.forEach(voice => {
+
+            if (
+                elapsed -
+                voice.lastRandomTargetTime
+                >= interval
+            ) {
+
+                voice.targetFrequency =
+                    randomBetween(
+                        Number(
+                            $("startLow").value
+                        ),
+                        Number(
+                            $("startHigh").value
+                        )
+                    );
+
+                voice.lastRandomTargetTime =
+                    elapsed;
+
+                voice.osc.frequency
+                    .setTargetAtTime(
+                        voice.targetFrequency,
+                        now,
+                        smoothing
+                    );
+            }
+
+        });
+    }
+
+
+    /* -----------------------------------------------------
+       CONVERGENCE
+       ----------------------------------------------------- */
+
+    if (stage === "CONVERGENCE") {
+
+        const smoothing =
+            Number(
+                $("convSmooth").value
+            );
+
+        const progress =
+            (
+                elapsed -
+                times.convergenceStart
+            ) /
+            Number(
+                $("convergence").value
+            );
+
+        const clamped =
+            Math.max(
+                0,
+                Math.min(1, progress)
+            );
+
+        voices.forEach(voice => {
+
+            /*
+               Ease-out interpolation.
+
+               The target is still sent through the
+               one-pole Web Audio smoother, giving the
+               characteristic continuously changing
+               trajectories.
+            */
+
+            const eased =
+                1 -
+                Math.pow(
+                    1 - clamped,
+                    1.6
+                );
+
+            const detune =
+                Number(
+                    $("detune").value
+                );
+
+            const detuneRatio =
+                Math.pow(
+                    2,
+                    (
+                        randomDetune(
+                            voice,
+                            detune
+                        ) / 1200
+                    )
+                );
+
+            const target =
+                voice.finalFrequency *
+                detuneRatio;
+
+            voice.targetFrequency =
+                target;
+
+            const intermediate =
+                voice.currentFrequency +
+                (
+                    target -
+                    voice.currentFrequency
+                ) *
+                eased;
+
+            voice.osc.frequency
+                .setTargetAtTime(
+                    intermediate,
+                    now,
+                    smoothing
+                );
+        });
+    }
+
+
+    /* -----------------------------------------------------
+       FINAL STAGE
+       ----------------------------------------------------- */
+
+    if (
+        stage === "SUSTAIN" ||
+        stage === "FADE OUT"
+    ) {
+
+        voices.forEach(voice => {
+
+            const detune =
+                Number(
+                    $("detune").value
+                );
+
+            const target =
+                voice.finalFrequency *
+                Math.pow(
+                    2,
+                    randomDetune(
+                        voice,
+                        detune
+                    ) / 1200
+                );
+
+            voice.osc.frequency
+                .setTargetAtTime(
+                    target,
+                    now,
+                    0.15
+                );
+        });
+    }
+
+
+    /* -----------------------------------------------------
+       MASTER FADE
+       ----------------------------------------------------- */
+
+    if (stage === "FADE OUT") {
+
+        const fadeProgress =
+            (
+                elapsed -
+                times.fadeOutStart
+            ) /
+            Number(
+                $("fadeOut").value
+            );
+
+        masterGain.gain.setTargetAtTime(
+            Math.max(
+                0.0001,
+                Number($("level").value) *
+                (1 - fadeProgress)
+            ),
+            now,
+            0.03
+        );
+    }
+}
+
+
+/* ---------------------------------------------------------
+   STABLE DETUNING
+   --------------------------------------------------------- */
+
+function randomDetune(voice, cents) {
+
+    if (
+        voice.detuneValue === undefined
+    ) {
+
+        voice.detuneValue =
+            (rng() * 2 - 1) * cents;
+    }
+
+    return voice.detuneValue;
+}
+
+
+/* ---------------------------------------------------------
+   STOP
+   --------------------------------------------------------- */
+
+function stopPerformance() {
+
+    playing = false;
+
+    if (voices.length) {
+
+        voices.forEach(voice => {
+
+            try {
+                voice.osc.stop();
+            } catch (e) {}
+
+            try {
+                voice.osc.disconnect();
+                voice.gain.disconnect();
+                voice.panner.disconnect();
+            } catch (e) {}
+        });
+    }
+
+    voices = [];
+
+    if (masterGain && audioContext) {
+
+        masterGain.gain.cancelScheduledValues(
+            audioContext.currentTime
+        );
+
+        masterGain.gain.setTargetAtTime(
+            0.0001,
+            audioContext.currentTime,
+            0.02
+        );
+    }
+
+    $("stageStatus").textContent = "IDLE";
+    $("stageDisplay").textContent = "IDLE";
+}
+
+
+/* ---------------------------------------------------------
+   ANIMATION / VISUALISATION
+   --------------------------------------------------------- */
+
+const canvas =
+    $("spectrumCanvas");
+
+const ctx =
+    canvas.getContext("2d");
+
+
+function resizeCanvas() {
+
+    const dpr =
+        window.devicePixelRatio || 1;
+
+    const rect =
+        canvas.getBoundingClientRect();
+
+    canvas.width =
+        rect.width * dpr;
+
+    canvas.height =
+        rect.height * dpr;
+
+    ctx.setTransform(
+        dpr,
+        0,
+        0,
+        dpr,
+        0,
+        0
+    );
+}
+
+
+window.addEventListener(
+    "resize",
+    resizeCanvas
+);
+
+resizeCanvas();
+
+
+function animationLoop() {
+
+    updatePerformance();
+
+    drawVisualization();
+
+    if (playing) {
+
+        animationFrame =
+            requestAnimationFrame(
+                animationLoop
+            );
+    }
+}
+
+
+/* ---------------------------------------------------------
+   VISUALISATION
+   --------------------------------------------------------- */
+
+function drawVisualization() {
+
+    const width =
+        canvas.clientWidth;
+
+    const height =
+        canvas.clientHeight;
+
+    ctx.clearRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+    /*
+       Background
+    */
+
+    ctx.fillStyle =
+        "#090b0e";
+
+    ctx.fillRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    /*
+       Frequency grid
+    */
+
+    const minFreq = 30;
+    const maxFreq = 2200;
+
+    function yForFrequency(freq) {
+
+        const logMin =
+            Math.log(minFreq);
+
+        const logMax =
+            Math.log(maxFreq);
+
+        const p =
+            (
+                Math.log(freq) -
+                logMin
+            ) /
+            (
+                logMax -
+                logMin
+            );
+
+        return (
+            height -
+            p * (height - 45) -
+            20
+        );
+    }
+
+
+    const gridFreqs = [
+        37.5,
+        75,
+        150,
+        300,
+        600,
+        900,
+        1200,
+        1500,
+        1800
+    ];
+
+    ctx.font =
+        "10px monospace";
+
+    gridFreqs.forEach(freq => {
+
+        const y =
+            yForFrequency(freq);
+
+        ctx.strokeStyle =
+            "#1b2026";
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            0,
+            y
+        );
+
+        ctx.lineTo(
+            width,
+            y
+        );
+
+        ctx.stroke();
+
+        ctx.fillStyle =
+            "#4b555e";
+
+        ctx.fillText(
+            freq + " Hz",
+            12,
+            y - 4
+        );
+    });
+
+
+    /*
+       Draw oscillator trajectories.
+
+       The actual current trajectories are sampled
+       visually rather than affecting the audio engine.
+    */
+
+    voices.forEach((voice, index) => {
+
+        const x =
+            width *
+            (
+                index /
+                Math.max(
+                    1,
+                    voices.length - 1
+                )
+            );
+
+        const current =
+            voice.osc.frequency.value;
+
+        const target =
+            voice.finalFrequency;
+
+        /*
+           A vertical trajectory representation:
+           each oscillator occupies a narrow horizontal
+           lane and connects its current frequency to
+           its final target.
+        */
+
+        const currentY =
+            yForFrequency(
+                Math.max(
+                    minFreq,
+                    Math.min(
+                        maxFreq,
+                        current
+                    )
+                )
+            );
+
+        const targetY =
+            yForFrequency(
+                Math.max(
+                    minFreq,
+                    Math.min(
+                        maxFreq,
+                        target
+                    )
+                )
+            );
+
+        ctx.strokeStyle =
+            "rgba(190,198,205,0.35)";
+
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            x,
+            currentY
+        );
+
+        ctx.lineTo(
+            x,
+            targetY
+        );
+
+        ctx.stroke();
+
+
+        ctx.fillStyle =
+            "#dce1e5";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            x,
+            currentY,
+            1.7,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fill();
+    });
+
+
+    /*
+       Final target lines
+    */
+
+    DEFAULT_TARGETS.forEach(freq => {
+
+        const y =
+            yForFrequency(freq);
+
+        ctx.strokeStyle =
+            "rgba(220,225,230,0.12)";
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            0,
+            y
+        );
+
+        ctx.lineTo(
+            width,
+            y
+        );
+
+        ctx.stroke();
+    });
+}
+
+
+/* ---------------------------------------------------------
+   BUTTONS
+   --------------------------------------------------------- */
+
+$("playButton").addEventListener(
+    "click",
+    playDeepNote
+);
+
+$("stopButton").addEventListener(
+    "click",
+    stopPerformance
+);
+
+$("randomButton").addEventListener(
+    "click",
+    () => {
+
+        const newSeed =
+            Math.floor(
+                Math.random() *
+                0xFFFFFFFF
+            );
+
+        $("seed").value =
+            newSeed;
+
+        playDeepNote();
+    }
+);
+
+
+/* ---------------------------------------------------------
+   RENDER WAV
+   ---------------------------------------------------------
+
+   This renders the complete performance using an
+   OfflineAudioContext.
+
+   It deliberately uses the same conceptual algorithm,
+   but is independent from the live Web Audio performance.
+   --------------------------------------------------------- */
+
+$("renderButton").addEventListener(
+    "click",
+    renderWav
+);
+
+
+async function renderWav() {
+
+    const button =
+        $("renderButton");
+
+    button.disabled = true;
+    button.textContent =
+        "Rendering...";
+
+    try {
+
+        const sampleRate = 44100;
+
+        const times =
+            getPerformanceTimes();
+
+        const duration =
+            times.end + 0.25;
+
+        const offline =
+            new OfflineAudioContext(
+                2,
+                Math.ceil(
+                    duration *
+                    sampleRate
+                ),
+                sampleRate
+            );
+
+        const master =
+            offline.createGain();
+
+        master.gain.value =
+            0.0001;
+
+        master.connect(
+            offline.destination
+        );
+
+        /*
+           Use a deterministic RNG.
+        */
+
+        const renderRng =
+            makeRNG(
+                Number($("seed").value)
+            );
+
+        function rr(a, b) {
+            return a +
+                renderRng() *
+                (b - a);
+        }
+
+        const waveform =
+            createOfflineWaveform(
+                offline
+            );
+
+        const count =
+            Number($("voices").value);
+
+        const assignments =
+            createTargetAssignmentsForRNG(
+                count,
+                renderRng
+            );
+
+        const renderVoices = [];
+
+        for (
+            let i = 0;
+            i < count;
+            i++
+        ) {
+
+            const osc =
+                offline.createOscillator();
+
+            const gain =
+                offline.createGain();
+
+            const panner =
+                offline.createStereoPanner();
+
+            osc.setPeriodicWave(
+                waveform
+            );
+
+            let initial =
+                rr(
+                    Number($("startLow").value),
+                    Number($("startHigh").value)
+                );
+
+            osc.frequency.value =
+                initial;
+
+            gain.gain.value =
+                0.0001;
+
+            panner.pan.value =
+                (
+                    rr(-1, 1) *
+                    Number($("stereo").value)
+                );
+
+            osc.connect(gain);
+            gain.connect(panner);
+            panner.connect(master);
+
+            renderVoices.push({
+                osc,
+                gain,
+                finalFrequency:
+                    assignments[i],
+                initial
+            });
+
+            osc.start(0);
+            osc.stop(duration);
+        }
+
+
+        /*
+           Overall amplitude envelope
+        */
+
+        master.gain.setValueAtTime(
+            0.0001,
+            0
+        );
+
+        master.gain.linearRampToValueAtTime(
+            Number($("level").value),
+            times.fadeIn
+        );
+
+        master.gain.setValueAtTime(
+            Number($("level").value),
+            times.fadeOutStart
+        );
+
+        master.gain.linearRampToValueAtTime(
+            0.0001,
+            times.end
+        );
+
+
+        /*
+           Recreate each voice's trajectory.
+        */
+
+        renderVoices.forEach(
+            (voice, index) => {
+
+                /*
+                   Chaos targets.
+                */
+
+                let t =
+                    times.chaosStart;
+
+                let current =
+                    voice.initial;
+
+                while (
+                    t <
+                    times.convergenceStart
+                ) {
+
+                    const target =
+                        rr(
+                            Number(
+                                $("startLow").value
+                            ),
+                            Number(
+                                $("startHigh").value
+                            )
+                        );
+
+                    voice.osc.frequency
+                        .setTargetAtTime(
+                            target,
+                            t,
+                            Number(
+                                $("chaosSmooth").value
+                            )
+                        );
+
+                    current =
+                        target;
+
+                    t +=
+                        Number(
+                            $("randomInterval").value
+                        );
+                }
+
+
+                /*
+                   Final convergence.
+
+                   The target is approached through a
+                   series of smoothed updates.
+                */
+
+                const steps = 100;
+
+                const convergenceDuration =
+                    Number(
+                        $("convergence").value
+                    );
+
+                let detune =
+                    (
+                        renderRng() * 2 - 1
+                    ) *
+                    Number(
+                        $("detune").value
+                    );
+
+                const finalFrequency =
+                    voice.finalFrequency *
+                    Math.pow(
+                        2,
+                        detune / 1200
+                    );
+
+                for (
+                    let s = 0;
+                    s <= steps;
+                    s++
+                ) {
+
+                    const p =
+                        s / steps;
+
+                    const eased =
+                        1 -
+                        Math.pow(
+                            1 - p,
+                            1.6
+                        );
+
+                    const target =
+                        current +
+                        (
+                            finalFrequency -
+                            current
+                        ) *
+                        eased;
+
+                    const t =
+                        times.convergenceStart +
+                        p *
+                        convergenceDuration;
+
+                    voice.osc.frequency
+                        .setTargetAtTime(
+                            target,
+                            t,
+                            Number(
+                                $("convSmooth").value
+                            )
+                        );
+                }
+
+
+                /*
+                   Final tiny detuning movement.
+                */
+
+                voice.osc.frequency
+                    .setTargetAtTime(
+                        finalFrequency,
+                        times.sustainStart,
+                        0.15
+                    );
+            }
+        );
+
+
+        const rendered =
+            await offline.startRendering();
+
+        const wav =
+            audioBufferToWav(
+                rendered
+            );
+
+        const blob =
+            new Blob(
+                [wav],
+                {
+                    type: "audio/wav"
+                }
+            );
+
+        const url =
+            URL.createObjectURL(blob);
+
+        const link =
+            document.createElement("a");
+
+        link.href = url;
+
+        link.download =
+            "moorers-deep-note-" +
+            $("seed").value +
+            ".wav";
+
+        link.click();
+
+        setTimeout(
+            () => URL.revokeObjectURL(url),
+            2000
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            "Rendering failed:\n\n" +
+            error.message
+        );
+
+    } finally {
+
+        button.disabled = false;
+        button.textContent =
+            "↓ RENDER WAV";
+    }
+}
+
+
+/* ---------------------------------------------------------
+   OFFLINE WAVEFORM
+   --------------------------------------------------------- */
+
+function createOfflineWaveform(context) {
+
+    const brightness =
+        Number($("brightness").value);
+
+    const real =
+        new Float32Array(13);
+
+    const imag =
+        new Float32Array(13);
+
+    for (
+        let h = 1;
+        h <= 12;
+        h++
+    ) {
+
+        let amplitude =
+            Math.pow(
+                0.55,
+                h - 1
+            );
+
+        amplitude *=
+            0.65 +
+            brightness * 0.35;
+
+        if (h === 2)
+            amplitude *= 1.15;
+
+        if (h === 3)
+            amplitude *= 0.95;
+
+        if (h === 4)
+            amplitude *= 0.85;
+
+        if (h > 6)
+            amplitude *= brightness;
+
+        imag[h] =
+            amplitude;
+    }
+
+    return context.createPeriodicWave(
+        real,
+        imag,
+        {
+            disableNormalization: false
+        }
+    );
+}
+
+
+/* ---------------------------------------------------------
+   OFFLINE TARGET ASSIGNMENT
+   --------------------------------------------------------- */
+
+function createTargetAssignmentsForRNG(
+    count,
+    random
+) {
+
+    let result = [];
+
+    for (
+        let i = 0;
+        i < count;
+        i++
+    ) {
+
+        result.push(
+            DEFAULT_TARGETS[
+                i %
+                DEFAULT_TARGETS.length
+            ]
+        );
+    }
+
+    for (
+        let i = result.length - 1;
+        i > 0;
+        i--
+    ) {
+
+        const j =
+            Math.floor(
+                random() *
+                (i + 1)
+            );
+
+        [
+            result[i],
+            result[j]
+        ] =
+        [
+            result[j],
+            result[i]
+        ];
+    }
+
+    return result;
+}
+
+
+/* ---------------------------------------------------------
+   AUDIOBUFFER → WAV
+   --------------------------------------------------------- */
+
+function audioBufferToWav(buffer) {
+
+    const numberOfChannels =
+        buffer.numberOfChannels;
+
+    const length =
+        buffer.length *
+        numberOfChannels *
+        2 + 44;
+
+    const arrayBuffer =
+        new ArrayBuffer(length);
+
+    const view =
+        new DataView(arrayBuffer);
+
+    function writeString(
+        offset,
+        string
+    ) {
+
+        for (
+            let i = 0;
+            i < string.length;
+            i++
+        ) {
+
+            view.setUint8(
+                offset + i,
+                string.charCodeAt(i)
+            );
+        }
+    }
+
+    let offset = 0;
+
+    writeString(offset, "RIFF");
+    offset += 4;
+
+    view.setUint32(
+        offset,
+        36 +
+        buffer.length *
+        numberOfChannels *
+        2,
+        true
+    );
+
+    offset += 4;
+
+    writeString(offset, "WAVE");
+    offset += 4;
+
+    writeString(offset, "fmt ");
+    offset += 4;
+
+    view.setUint32(
+        offset,
+        16,
+        true
+    );
+
+    offset += 4;
+
+    view.setUint16(
+        offset,
+        1,
+        true
+    );
+
+    offset += 2;
+
+    view.setUint16(
+        offset,
+        numberOfChannels,
+        true
+    );
+
+    offset += 2;
+
+    view.setUint32(
+        offset,
+        buffer.sampleRate,
+        true
+    );
+
+    offset += 4;
+
+    view.setUint32(
+        offset,
+        buffer.sampleRate *
+        numberOfChannels *
+        2,
+        true
+    );
+
+    offset += 4;
+
+    view.setUint16(
+        offset,
+        numberOfChannels * 2,
+        true
+    );
+
+    offset += 2;
+
+    view.setUint16(
+        offset,
+        16,
+        true
+    );
+
+    offset += 2;
+
+    writeString(offset, "data");
+    offset += 4;
+
+    view.setUint32(
+        offset,
+        buffer.length *
+        numberOfChannels *
+        2,
+        true
+    );
+
+    offset += 4;
+
+
+    const channels = [];
+
+    for (
+        let channel = 0;
+        channel < numberOfChannels;
+        channel++
+    ) {
+
+        channels.push(
+            buffer.getChannelData(channel)
+        );
+    }
+
+
+    for (
+        let i = 0;
+        i < buffer.length;
+        i++
+    ) {
+
+        for (
+            let channel = 0;
+            channel < numberOfChannels;
+            channel++
+        ) {
+
+            let sample =
+                channels[channel][i];
+
+            sample =
+                Math.max(
+                    -1,
+                    Math.min(
+                        1,
+                        sample
+                    )
+                );
+
+            view.setInt16(
+                offset,
+                sample < 0
+                    ? sample * 0x8000
+                    : sample * 0x7FFF,
+                true
+            );
+
+            offset += 2;
+        }
+    }
+
+    return arrayBuffer;
+}
+
+
+/* ---------------------------------------------------------
+   INITIAL STATE
+   --------------------------------------------------------- */
+
+$("voiceStatus").textContent =
+    $("voices").value;
+
+$("voices").addEventListener(
+    "input",
+    () => {
+        $("voiceStatus").textContent =
+            $("voices").value;
+    }
+);
+
+$("seed").addEventListener(
+    "change",
+    () => {
+        currentSeed =
+            Number($("seed").value);
+    }
+);
+
+</script>
+
+</body>
+</html>
