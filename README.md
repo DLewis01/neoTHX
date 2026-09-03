@@ -1,5 +1,5 @@
 # neoTHX
-A THX like BRRRRRRRRAAAAAAAAAAAAAA tone
+A THX like ## BRRRRRRRRAAAAAAAAAAAAAA tone
 
 After the shepard tone programs of last week, I thought they sounded awlfully like the THX sound.
 So naturally this week, I implimented my version of the THX Deepnote, with the option to make it last forever with a shepard tone. On the left panel you'll see an option to select either an up or down infinite tone.
@@ -118,6 +118,6 @@ This implementation is intended to be **algorithmically faithful rather than bit
 
 The broad characteristics — approximately 200–400 Hz initial frequency range, 30 voices, a cello-derived waveform, one-pole frequency smoothing, periodic random reassignment, convergence toward a final structure based around a 150 Hz root, and deliberate residual detuning — are supported by James Moorer's accounts of the original system.
 
-Some of the detailed target-frequency tables circulating today are reconstructions rather than a complete published copy of Moorer's original source code. The implementation therefore reproduces the documented principles and behaviour without claiming to be an exact recreation of the original program.
+This implementation therefore reproduces the documented principles and behaviour without claiming to be an exact recreation of the original program, hence the neo prefix.
 
 
