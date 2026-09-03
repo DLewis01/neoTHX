@@ -1,8 +1,6 @@
 # neoTHX
 A THX like **BRRRRRRRRAAAAAAAAAAAAAA** tone
 
-![simpsons](video/THXSimpsons.mp4)
-
 After the shepard tone programs of last week, I thought they sounded awlfully like the THX sound.
 So naturally this week, I implimented my version of the THX Deepnote, with the option to make it last forever with a shepard tone. On the left panel you'll see an option to select either an up or down infinite tone.
 
