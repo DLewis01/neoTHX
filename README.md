@@ -1,5 +1,5 @@
 # neoTHX
-A THX like ## BRRRRRRRRAAAAAAAAAAAAAA tone
+A THX like **BRRRRRRRRAAAAAAAAAAAAAA** tone
 
 After the shepard tone programs of last week, I thought they sounded awlfully like the THX sound.
 So naturally this week, I implimented my version of the THX Deepnote, with the option to make it last forever with a shepard tone. On the left panel you'll see an option to select either an up or down infinite tone.
@@ -13,9 +13,10 @@ PLAY IT LOUD, OK!
 ![THX score](THXscore.webp)
 
 ## HOW it works
+
 ## Frequency Convergence
 
-Each Deep Note voice has a current oscillator frequency and a target frequency. The oscillator's actual frequency does not jump immediately to the target; instead, it follows the target through a low-pass, or **one-pole smoothing**, process.
+Each Deep Note voice has a current oscillator frequency and a target frequency. The oscillator's actual frequency does not jump immediately to the target; instead, it follows the target through a low-pass, or one-pole smoothing, process.
 
 Conceptually, the frequency update can be represented as:
 
@@ -31,7 +32,7 @@ where:
 
 A smaller smoothing coefficient causes the oscillator to approach its target more slowly.
 
-This smoothing is an important part of the Deep Note effect. Rather than hearing a series of discrete pitch changes, we hear each voice **gliding continuously** between frequencies.
+This smoothing is an important part of the Deep Note effect. Rather than hearing a series of discrete pitch changes, we hear each voice gliding continuously between frequencies.
 
 ### Random Frequency Assignment
 
@@ -52,11 +53,7 @@ These changes are not instantaneous because of the frequency smoothers. Each osc
 
 At a predetermined point, the random behaviour stops.
 
-The program effectively switches from:
-
-> **STOP RANDOM TARGETS**
-
-to a fixed set of final target frequencies:
+The program effectively switches from random changes to a fixed set of final target frequencies:
 
 ```text
 Voice 1  → target frequency A
@@ -66,13 +63,13 @@ Voice 3  → target frequency C
 Voice 30 → target frequency D
 ```
 
-The oscillators still do not jump to their final frequencies. The same frequency-smoothing process causes every voice to **glide toward its assigned final pitch**.
+The oscillators still do not jump to their final frequencies. The same frequency-smoothing process causes every voice to glide toward its assigned final pitch.
 
 The result is a gradual convergence from the initial chaotic cluster into a single, very large chord.
 
 ## Final Frequency Structure
 
-The reconstructed final frequency structure is based around a **150 Hz root**:
+The reconstructed final frequency structure is based around a 150 Hz root:
 
 | Target | Frequency |
 | -----: | --------: |
@@ -110,11 +107,11 @@ The frequency relationships can be expressed as:
 
 Multiple voices can therefore be assigned within this overall frequency structure, producing a dense final chord rather than a single pitch.
 
-Small amounts of **deliberate detuning** are retained between voices. These tiny differences in frequency produce beating between the voices, contributing to the characteristic shimmering quality of the final chord.
+Small amounts of deliberate detuning are retained between voices. These tiny differences in frequency produce beating between the voices, contributing to the characteristic shimmering quality of the final chord.
 
 ## Implementation Fidelity
 
-This implementation is intended to be **algorithmically faithful rather than bit-for-bit identical to the original Deep Note**.
+This implementation is intended to be algorithmically faithful rather than bit-for-bit identical to the original Deep Note.
 
 The broad characteristics — approximately 200–400 Hz initial frequency range, 30 voices, a cello-derived waveform, one-pole frequency smoothing, periodic random reassignment, convergence toward a final structure based around a 150 Hz root, and deliberate residual detuning — are supported by James Moorer's accounts of the original system.
 
